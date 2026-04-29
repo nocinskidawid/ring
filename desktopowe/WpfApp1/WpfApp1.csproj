@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="c.png" />
+    <None Remove="pobrane.jpg" />
+    <None Remove="zi.png" />
+    <None Remove="zo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="c.png" />
+    <Resource Include="pobrane.jpg" />
+    <Resource Include="zi.png" />
+    <Resource Include="zo.png" />
+  </ItemGroup>
+
+</Project>
