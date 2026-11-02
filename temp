@@ -1,0 +1,96 @@
+(() => {
+  'use strict';
+  const nazwa = '__obslugaQuizu';
+  if (typeof active !== 'boolean' || typeof locked !== 'boolean' ||
+      typeof qs === 'undefined' || !Array.isArray(qs) ||
+      typeof idx !== 'number' || typeof deadline !== 'number' ||
+      !document.getElementById('answers') || !document.getElementById('result')) {
+    console.error('Niepasująca struktura strony. Skrypt nie został uruchomiony.');
+    return;
+  }
+  window[nazwa]?.usun();
+  const kontroler = new AbortController();
+  const opcje = { signal: kontroler.signal };
+  const wcisniete = new Set();
+  let wlaczone = false;
+  let kombinacjaAktywna = false;
+  let timer;
+  let usuniete = false;
+
+  function usun() {
+    if (usuniete) return;
+    usuniete = true;
+    kontroler.abort();
+    clearInterval(timer);
+    wcisniete.clear();
+    if (window[nazwa]?.usun === usun) delete window[nazwa];
+  }
+
+  function poleTekstowe(element) {
+    return element instanceof Element && element.closest(
+      'textarea, select, [contenteditable]:not([contenteditable="false"]), ' +
+      'input:not([type="radio"]):not([type="checkbox"])'
+    );
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.repeat || e.isComposing || e.ctrlKey || e.altKey || e.metaKey ||
+        poleTekstowe(e.target)) return;
+    const klawisz = e.key.toLowerCase();
+    wcisniete.add(klawisz);
+    if (wcisniete.has('0') && wcisniete.has('1')) {
+      if (!kombinacjaAktywna) {
+        wlaczone = !wlaczone;
+        kombinacjaAktywna = true;
+      }
+      e.preventDefault();
+      return;
+    }
+    if (klawisz !== 'o' || !wlaczone || !active || locked) return;
+    if (Date.now() >= deadline) {
+      if (typeof tick === 'function') tick();
+      return;
+    }
+    const pytanie = qs[idx];
+    const kontener = document.getElementById('answers');
+    if (!pytanie || !kontener) return;
+
+    if (pytanie.type === 'fill') {
+      const pole = document.getElementById('entry');
+      if (!pole || !kontener.contains(pole) || pole.disabled ||
+          pole.readOnly || typeof pytanie.answer !== 'string') return;
+      e.preventDefault();
+      pole.value = pytanie.answer;
+    } else {
+      const pola = [...kontener.querySelectorAll('input[name="answer"]')];
+      if (!['single', 'multi', 'tf'].includes(pytanie.type) ||
+          !Array.isArray(pytanie.a) || !Array.isArray(pytanie.correct) ||
+          !pytanie.correct.length || pola.length !== pytanie.a.length) return;
+      const indeksy = pola.map(pole => Number(pole.value));
+      if (pola.some(pole => pole.disabled) ||
+          new Set(indeksy).size !== indeksy.length ||
+          indeksy.some(i => !Number.isInteger(i) || i < 0 || i >= pytanie.a.length) ||
+          !pytanie.correct.every(i => Number.isInteger(i) && indeksy.includes(i))) return;
+      e.preventDefault();
+      pola.forEach(pole => {
+        pole.checked = pytanie.correct.includes(Number(pole.value));
+      });
+    }
+    // capture() strony odczytuje wartości dopiero przy zatwierdzeniu.
+    // Nie zmieniamy points, done, idx ani events.
+  }, opcje);
+
+  document.addEventListener('keyup', e => {
+    wcisniete.delete(e.key.toLowerCase());
+    if (!wcisniete.has('0') || !wcisniete.has('1')) kombinacjaAktywna = false;
+  }, opcje);
+  window.addEventListener('blur', () => {
+    wcisniete.clear();
+    kombinacjaAktywna = false;
+  }, opcje);
+  timer = setInterval(() => {
+    const wynik = document.getElementById('result');
+    if (!active && wynik && !wynik.hidden) usun();
+  }, 500);
+  window[nazwa] = { usun };
+})();
