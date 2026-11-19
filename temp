@@ -1,50 +1,82 @@
-ImageView:
-app:srcCompat="@drawable/kosmos"
-obrazek.setImageResource(R.drawable.kosmos); //przy pliku kosmos.png
--------------------------------------------------------------------------------
-Spinner: 
-android:entries="@array/opcje" // w pliku strings.xml: 
-<string-array name="opcje">
-	<item>1</item>
-	<item>2</item>
-	<item>3</item>
-</string-array>
+// Wersja dla „testy wejsciowka.html” (MSTest).
+// 0 + 1 jednocześnie: włącz/wyłącz. Litera O: zaznacz odpowiedzi.
+// Początkowo wyłączone. Nie zatwierdza pytań ani nie zmienia raportu.
+// Nie ukrywa kodu i nie wyłącza mechanizmów kontroli strony.
+(() => {
+  'use strict';
+  const nazwa = '__obslugaQuizu';
+  if (typeof examActive !== 'boolean' || typeof examFinished !== 'boolean' ||
+      typeof antiCheatGuard !== 'boolean' || typeof secondsLeft !== 'number' ||
+      typeof questions === 'undefined' || !Array.isArray(questions) ||
+      typeof currentIndex !== 'number' || typeof updateNextButton !== 'function' ||
+      !document.getElementById('answers') || !document.getElementById('nextBtn')) {
+    console.error('Niepasująca struktura quizu. Skrypt nie został uruchomiony.');
+    return;
+  }
+  window[nazwa]?.usun();
+  if (examFinished) return;
+  const kontroler = new AbortController();
+  const opcje = { signal: kontroler.signal };
+  const wcisniete = new Set();
+  let wlaczone = false, kombinacjaAktywna = false, usuniete = false;
+  let timer;
 
-spinner.setOnItemSelectedListener(new --){
-.
-.
-.
-
-	 wybranaOpcja = parent.getItemAtPosition(position).toString();
-
-
-	if(WybranaOpcja.equals("Opcja1")){
-}
-
-}
------------------------------------------------------------------------------------
-RadioGroup:
-
-int zaznaczone = radioGrupa.getCheckedRadioButtonId();
-if(zaznaczone == R.id.radioopcja1){
-	///// ciało funkcji 
-}
-----------------------------------------------------------------------------------
-Seekbar:
-android:max="5"
-
-seekBar.getProgress()
-
-seekbar.setOnSeekBarChangeListener(new -- ){
-	int jakasZmienna = progress;
-}
----------------------------------------------------------------------------------
-Switch: 
-
-Switch switchuch = findViewById(R.id.switch1);
-
-        if(switchuch.isChecked()){
-            // cialo
-        }else {
-		// ciało
-	}
+  function usun() {
+    if (usuniete) return;
+    usuniete = true;
+    kontroler.abort();
+    clearInterval(timer);
+    wcisniete.clear();
+    if (window[nazwa]?.usun === usun) delete window[nazwa];
+  }
+  function poleTekstowe(element) {
+    return element instanceof Element && element.closest(
+      'textarea, select, [contenteditable]:not([contenteditable="false"]), ' +
+      'input:not([type="radio"]):not([type="checkbox"])'
+    );
+  }
+  document.addEventListener('keydown', e => {
+    if (e.repeat || e.isComposing || e.ctrlKey || e.altKey || e.metaKey ||
+        poleTekstowe(e.target)) return;
+    const klawisz = e.key.toLowerCase();
+    wcisniete.add(klawisz);
+    if (wcisniete.has('0') && wcisniete.has('1')) {
+      if (!kombinacjaAktywna) {
+        wlaczone = !wlaczone;
+        kombinacjaAktywna = true;
+      }
+      e.preventDefault();
+      return;
+    }
+    if (klawisz !== 'o' || !wlaczone || !examActive || examFinished ||
+        antiCheatGuard || secondsLeft <= 0) return;
+    const q = questions[currentIndex];
+    if (!q || !['single', 'multi'].includes(q.type) || !Array.isArray(q.answers)) return;
+    const poprawne = Array.isArray(q.correct) ? q.correct : [q.correct];
+    const pola = [...document.querySelectorAll('#answers input[name="answer"]')];
+    const indeksy = pola.map(p => Number(p.value));
+    if (!poprawne.length || pola.length !== q.answers.length ||
+        (q.type === 'single' && poprawne.length !== 1) ||
+        pola.some(p => p.disabled || p.type !== (q.type === 'multi' ? 'checkbox' : 'radio')) ||
+        new Set(indeksy).size !== indeksy.length ||
+        indeksy.some(i => !Number.isInteger(i) || i < 0 || i >= q.answers.length) ||
+        !poprawne.every(i => Number.isInteger(i) && indeksy.includes(i))) return;
+    e.preventDefault();
+    pola.forEach(p => {
+      p.checked = poprawne.includes(Number(p.value));
+      p.closest('.answer')?.classList.toggle('selected', p.checked);
+    });
+    updateNextButton();
+    // Oryginalne submitCurrent() zapisuje odpowiedź po kliknięciu „Dalej”.
+  }, opcje);
+  document.addEventListener('keyup', e => {
+    wcisniete.delete(e.key.toLowerCase());
+    if (!wcisniete.has('0') || !wcisniete.has('1')) kombinacjaAktywna = false;
+  }, opcje);
+  window.addEventListener('blur', () => {
+    wcisniete.clear();
+    kombinacjaAktywna = false;
+  }, opcje);
+  timer = setInterval(() => { if (examFinished) usun(); }, 500);
+  window[nazwa] = { usun };
+})();
